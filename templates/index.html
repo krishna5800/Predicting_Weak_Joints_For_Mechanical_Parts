@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI CAE Analysis | Pro</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --border: #334155;
+            --nav-height: 64px;
+            --header-height: 70px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- 1. Global Navigation (Fixed Top) --- */
+        nav {
+            background-color: rgba(15, 23, 42, 1);
+            height: var(--nav-height);
+            padding: 0 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            /* Highest priority */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-pill {
+            font-size: 0.75rem;
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-weight: 500;
+        }
+
+        /* --- 2. Main Content Wrapper --- */
+        /* Strict margin ensures no overlap with fixed nav */
+        .main-wrapper {
+            margin-top: var(--nav-height);
+            height: calc(100vh - var(--nav-height));
+            width: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- VIEW: UPLOAD --- */
+        #upload-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .upload-card {
+            background: var(--card-bg);
+            border: 2px dashed #475569;
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            width: 100%;
+            max-width: 480px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .upload-card:hover {
+            border-color: var(--primary);
+            background: #263345;
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-sub);
+            margin-bottom: 20px;
+        }
+
+        .upload-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            margin: 0 0 8px 0;
+        }
+
+        .upload-subtitle {
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .primary-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 32px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 30px;
+            display: none;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .primary-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        #fileName {
+            margin-top: 20px;
+            color: var(--primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+            min-height: 24px;
+        }
+
+        /* --- VIEW: RESULTS --- */
+        #result-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            background-color: var(--bg-color);
+        }
+
+        .result-toolbar {
+            height: var(--header-height);
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            flex-shrink: 0;
+            z-index: 50;
+        }
+
+        .file-meta h2 {
+            font-size: 1rem;
+            margin: 0;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .file-meta span {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-top: 4px;
+            display: block;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-sub);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .back-btn:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* The Plot Container fills the rest */
+        #plot-container {
+            flex-grow: 1;
+            width: 100%;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 90%);
+            overflow: hidden;
+        }
+
+        /* --- Loading Overlay --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 3000;
+            backdrop-filter: blur(8px);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div class="brand">
+            <span>◆</span> CAE NEURAL
+        </div>
+        <div class="status-pill">● System Active</div>
+    </nav>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="font-weight: 500; font-size: 1rem;">Analyzing Geometry...</p>
+        <p style="font-size: 0.85rem; color: #64748b;">Calculating stress tensors on point cloud</p>
+    </div>
+
+    <div class="main-wrapper">
+
+        <div id="upload-view">
+            <div class="upload-card" id="drop-zone" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📂</div>
+                <h3 class="upload-title">Select CAD Model</h3>
+                <p class="upload-subtitle">Supports .STEP, .STP & .OFF files</p>
+                <p style="margin-top:10px; font-size:0.75rem; color:#475569">Drag and drop or click to browse</p>
+                <input type="file" id="fileInput" accept=".off,.step,.stp">
+            </div>
+            <p id="fileName"></p>
+            <button id="runBtn" class="primary-btn" onclick="runAnalysis()">Run Stress Analysis</button>
+        </div>
+
+        <div id="result-view">
+            <div class="result-toolbar">
+                <div class="file-meta">
+                    <h2 id="res-filename">filename.off</h2>
+                    <span>3D Stress Map</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="back-btn" onclick="downloadHTML()">⬇ Download HTML Report</button>
+                    <button class="back-btn" onclick="resetApp()">Upload New File</button>
+                </div>
+            </div>
+            <div id="plot-container"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const runBtn = document.getElementById('runBtn');
+        const fileNameDisplay = document.getElementById('fileName');
+        const uploadView = document.getElementById('upload-view');
+        const resultView = document.getElementById('result-view');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const resFilename = document.getElementById('res-filename');
+        
+        // Store analysis data for export
+        let currentPlotJson = null;
+        let currentStressValues = null;
+        let currentFilename = null;
+
+        // File Selection Logic
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            if (this.files && this.files[0]) {
+                fileNameDisplay.textContent = "Selected: " + this.files[0].name;
+                runBtn.style.display = "inline-block";
+            }
+        }
+
+        async function runAnalysis() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            loadingOverlay.style.display = "flex";
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Backend Error");
+
+                const plotData = await response.json();
+
+                if (plotData.error) {
+                    alert("Error: " + plotData.error);
+                    loadingOverlay.style.display = "none";
+                    return;
+                }
+
+                // Store data for export
+                currentStressValues = plotData.stress_values;
+                currentFilename = plotData.original_filename;
+                
+                // Create plot data object without stress_values for Plotly
+                currentPlotJson = {
+                    data: plotData.data,
+                    layout: plotData.layout
+                };
+
+                // 1. Determine Max Stress Location for Annotation
+                let maxVal = -Infinity;
+                let maxIndex = 0;
+
+                // Find the trace containing the stress data (usually the first one)
+                const stressTrace = plotData.data[0];
+                if (stressTrace && stressTrace.marker && stressTrace.marker.color) {
+                    const colors = stressTrace.marker.color;
+                    for (let i = 0; i < colors.length; i++) {
+                        if (colors[i] > maxVal) {
+                            maxVal = colors[i];
+                            maxIndex = i;
+                        }
+                    }
+                }
+
+                // 2. Modify Traces
+                if (plotData.data && plotData.data.length > 0) {
+                    // Main Point Cloud Trace
+                    plotData.data[0].marker.size = 2; // Small dots
+                    plotData.data[0].showlegend = false;
+                    plotData.data[0].hoverinfo = 'text';
+
+                    // Max Stress Highlight Trace (usually the second trace added by backend)
+                    if (plotData.data.length > 1) {
+                        const maxTrace = plotData.data[1];
+                        maxTrace.marker.symbol = 'diamond'; // Diamond shape
+                        maxTrace.marker.size = 6;           // Larger size
+                        maxTrace.marker.color = 'white';    // Bright white
+                        maxTrace.marker.line = { color: 'black', width: 1 }; // Border for contrast
+                        maxTrace.name = 'Max Stress';
+                        maxTrace.showlegend = true;
+                    }
+                }
+
+                // 3. Clean up the Layout
+                const layoutUpdate = {
+                    autosize: true,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    margin: { t: 0, b: 0, l: 0, r: 0 },
+                    font: { family: 'Inter, sans-serif', color: '#f1f5f9' },
+                    showlegend: true,
+                    legend: { x: 0, y: 1, font: { color: '#f1f5f9' } }, // Fix legend position
+                    scene: {
+                        ...plotData.layout.scene,
+                        bgcolor: 'rgba(0,0,0,0)',
+                        aspectmode: 'data',
+                        camera: { eye: { x: 1.4, y: 1.4, z: 1.4 } },
+                        // Add annotation pointing to max stress
+                        annotations: [{
+                            x: plotData.data[1].x[0],
+                            y: plotData.data[1].y[0],
+                            z: plotData.data[1].z[0],
+                            text: 'MAX STRESS',
+                            textangle: 0,
+                            ax: 0,
+                            ay: -50,
+                            font: { color: "white", size: 11 },
+                            arrowcolor: "white",
+                            arrowhead: 1,
+                            arrowwidth: 1,
+                            arrowsize: 1.5
+                        }]
+                    },
+                    coloraxis: {
+                        colorbar: {
+                            title: { text: "Stress", side: "top" },
+                            thickness: 15,
+                            len: 0.5,
+                            x: 0.95,
+                            y: 0.5,
+                            tickfont: { color: '#94a3b8', size: 10 },
+                            titlefont: { color: '#f1f5f9', size: 12 }
+                        }
+                    }
+                };
+
+                // Switch Views
+                loadingOverlay.style.display = "none";
+                uploadView.style.display = "none";
+                resultView.style.display = "flex";
+                resFilename.textContent = file.name;
+
+                const finalLayout = Object.assign({}, plotData.layout, layoutUpdate);
+
+                Plotly.newPlot('plot-container', plotData.data, finalLayout, {
+                    responsive: true,
+                    displayModeBar: false
+                });
+
+                window.dispatchEvent(new Event('resize'));
+
+            } catch (err) {
+                console.error(err);
+                alert("Connection failed. Ensure python app.py is running.");
+                loadingOverlay.style.display = "none";
+            }
+        }
+
+        async function downloadHTML() {
+            if (!currentPlotJson || !currentStressValues || !currentFilename) {
+                alert("No analysis data available to export.");
+                return;
+            }
+
+            try {
+                loadingOverlay.style.display = "flex";
+                
+                const response = await fetch('/export-html', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plot_json: currentPlotJson,
+                        stress_values: currentStressValues,
+                        filename: currentFilename
+                    })
+                });
+
+                if (!response.ok) throw new Error("Export failed");
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const baseName = currentFilename.split('.')[0];
+                a.download = `${baseName}_analysis_${timestamp}.html`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                loadingOverlay.style.display = "none";
+                alert("HTML report downloaded successfully!");
+            } catch (err) {
+                console.error(err);
+                alert("Failed to export HTML report.");
+                loadingOverlay.style.display = "none";
+            }
+        }
+
+        function resetApp() {
+            resultView.style.display = "none";
+            uploadView.style.display = "flex";
+            fileInput.value = "";
+            fileNameDisplay.textContent = "";
+            runBtn.style.display = "none";
+            currentPlotJson = null;
+            currentStressValues = null;
+            currentFilename = null;
+            Plotly.purge('plot-container');
+        }
+
+        // Drag & Drop
+        const dropZone = document.getElementById('drop-zone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#3b82f6';
+            dropZone.style.background = '#263345';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#475569';
+            dropZone.style.background = '#1e293b';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#475569';
+            dropZone.style.background = '#1e293b';
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect.call(fileInput);
+            }
+        });
+    </script>
+</body>
+
+</html>

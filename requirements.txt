@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+torch
+torchvision
+numpy
+trimesh
+plotly
+python-multipart
+jinja2
+gmsh
